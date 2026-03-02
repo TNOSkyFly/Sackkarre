@@ -22,6 +22,11 @@ MotorState curState = MOTOR_AUS;
 // --- Regelungsparameter ---
 int targetPWM = 0;   
 int currentPWM = 0;  
+int minPoti = 4095;       // Startwert hoch (wird kleiner)
+int maxPoti = 0;          // Startwert niedrig (wird größer)
+int lastLoggedMin = 4095; // Hilfsvariablen für den Serial-Monitor
+int lastLoggedMax = 0;
+
 const int MAX_PWM_LIMIT = 216; 
 const int START_PWM_VALUE = 30; 
 const float RAMP_STEP = 1.0;   
@@ -43,7 +48,7 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html>
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <meta charset="UTF-8">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -53,7 +58,7 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
             font-family: 'Segoe UI', sans-serif; background: #000; color: #eee; 
             margin: 0; padding: 15px; text-align: center; 
             transition: background 0.5s; overflow-x: hidden;
-            -webkit-user-select: none; -ms-user-select: none; user-select: none; 
+            -webkit-user-select: none; user-select: none; 
         }
         body.alarm { background: #440000; }
         
@@ -61,8 +66,8 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
         .vmax-label { color: #ffcc00; font-size: 0.9rem; font-weight: bold; text-transform: uppercase; }
         
         .btn-reset { 
-            background: #222; border: 1px solid #444; color: #eee; padding: 2px 10px; border-radius: 12px; font-size: 0.7rem; 
-            cursor: pointer; text-transform: uppercase; -webkit-tap-highlight-color: transparent; outline: none; 
+            background: #222; border: 1px solid #444; color: #eee; padding: 4px 12px; border-radius: 12px; font-size: 0.7rem; 
+            cursor: pointer; text-transform: uppercase; outline: none; 
         }
         .btn-reset:active { background: #ff4444; color: #fff; }
 
@@ -73,18 +78,11 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
         .diag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
         .diag-card { background: #111; border: 1px solid #222; padding: 12px; border-radius: 15px; }
         .diag-val { font-size: 1.6rem; font-weight: bold; display: block; margin: 5px 0; font-family: monospace; color: #fff; }
-        
-        /* FIX: Einheiten (°C und %) groß und weiß */
-        .diag-val small { 
-            font-size: 1.2rem !important; 
-            color: #fff !important; 
-            margin-left: 4px; 
-            font-weight: bold;
-        }
+        .diag-val small { font-size: 1.2rem !important; color: #fff !important; margin-left: 4px; font-weight: bold; }
         
         .led-box { display: flex; justify-content: center; margin-top: 8px; }
-        .led { width: 20px; height: 20px; border-radius: 50%; background: #222; transition: all 0.1s; box-shadow: inset 0 0 5px #000; border: 1px solid #333; }
-        .led-hin.active { background: #00ffcc; box-shadow: 0 0 20px #00ffcc, inset 0 0 5px #fff; }
+        .led { width: 22px; height: 22px; border-radius: 50%; background: #222; transition: all 0.1s; box-shadow: inset 0 0 5px #000; border: 1px solid #333; }
+        .led-hin.active { background: radial-gradient(circle at 30% 30%, #aafff4 0%, #00ffcc 100%); box-shadow: 0 0 20px #00ffcc, inset 0 0 5px #fff; }
         .led-lin.active { background: #ff4444; box-shadow: 0 0 20px #ff4444, inset 0 0 5px #fff; }
 
         .bar-wrap { width: 100%; height: 12px; background: #1a1a1a; border-radius: 6px; margin: 10px 0; overflow: hidden; border: 1px solid #222; }
@@ -93,6 +91,7 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
         .footer { border-top: 1px solid #222; padding-top: 15px; margin-top: 25px; font-weight: bold; }
         .state-0 { color: #ff4444; } .state-1 { color: #ffcc00; } .state-2 { color: #00ffcc; }
         #lock-msg { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 0, 0, 0.95); z-index: 1000; flex-direction: column; justify-content: center; align-items: center; color: white; }
+        
     </style>
 </head>
 <body>
@@ -106,7 +105,6 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
         <button class="btn-reset" onclick="vmax=0">Reset</button>
         <button class="btn-reset" onclick="toggleFullScreen()">Fullscreen</button>
     </div>
-
     <div class="speed-box">
         <div id="speed">0</div>
         <div class="unit">KM/H</div>
@@ -114,9 +112,7 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
 
     <div class="diag-card" style="margin-bottom:20px;"> 
         <span class="unit">SYSTEM TEMP</span>
-        <div class="diag-val">
-            <span id="temp" style="color:#00ffcc">--</span><small>°C</small>
-        </div>
+        <div class="diag-val"><span id="temp" style="color:#00ffcc">--</span><small>°C</small></div>
     </div>
 
     <div class="diag-grid">
@@ -141,14 +137,30 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
     <div class="footer">STATUS: <span id="st-txt">---</span></div>
 
     <script>
-        let vmax = 0; let lastAlarm = 0;
+        let vmax = 0; 
+        let lastAlarm = 0;
+        let speedHistory = [0, 0, 0, 0, 0, 0, 0, 0]; // 8 Werte für sanfte Glättung
+
         if ("geolocation" in navigator) {
             navigator.geolocation.watchPosition(p => {
-                let s = (p.coords.speed * 3.6); if (s < 0 || isNaN(s)) s = 0;
-                document.getElementById('speed').innerHTML = Math.floor(s);
-                if (s > vmax) { vmax = s; document.getElementById('vmax').innerHTML = vmax.toFixed(1); }
-            }, null, {enableHighAccuracy:true});
+                let rawSpeed = (p.coords.speed * 3.6); 
+                if (rawSpeed < 0 || isNaN(rawSpeed)) rawSpeed = 0;
+
+                speedHistory.push(rawSpeed);
+                speedHistory.shift();
+
+                let smoothSpeed = speedHistory.reduce((a, b) => a + b) / speedHistory.length;
+                let displaySpeed = smoothSpeed < 0.7 ? 0 : Math.round(smoothSpeed);
+                
+                document.getElementById('speed').innerHTML = displaySpeed;
+
+                if (displaySpeed > vmax) { 
+                    vmax = displaySpeed; 
+                    document.getElementById('vmax').innerHTML = vmax.toFixed(1); 
+                }
+            }, null, { enableHighAccuracy: true, maximumAge: 0, timeout: 2000 });
         }
+
         setInterval(() => {
             fetch('/status').then(r => r.json()).then(d => {
                 const states = ["AUS", "BEREIT", "AKTIV", "SPERRE"];
@@ -173,6 +185,9 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
                 document.getElementById('l18').classList.toggle('active', d.p > 0);
                 document.getElementById('v19').innerHTML = (d.p == 0) ? "HIGH" : "LOW";
                 document.getElementById('l19').classList.toggle('active', d.p == 0);
+            }).catch(e => {
+                document.getElementById('st-txt').innerHTML = "VERBINDUNG VERLOREN";
+                document.getElementById('st-txt').style.color = "red";
             });
         }, 200);
         
@@ -206,14 +221,51 @@ void read_temp_sensor() {
 }
 
 bool get_gas(int &pwm) {
+    int rawValue = analogRead(GASPEDAL_PIN);
+
+    // --- KALIBRIERUNGS-LOGIK ---
+    if (rawValue < minPoti) minPoti = rawValue;
+    if (rawValue > maxPoti) maxPoti = rawValue;
+
+    // Nur im Monitor ausgeben, wenn sich die Rekorde geändert haben
+    if (minPoti != lastLoggedMin || maxPoti != lastLoggedMax) {
+        Serial.print("POTI-CHECK -> AKTUELL: ");
+        Serial.print(rawValue);
+        Serial.print(" | REKORD-MIN: ");
+        Serial.print(minPoti);
+        Serial.print(" | REKORD-MAX: ");
+        Serial.println(maxPoti);
+        
+        lastLoggedMin = minPoti;
+        lastLoggedMax = maxPoti;
+    }
+    // ---------------------------
+
+    // Glättung (Moving Average)
     total = total - readings[readIndex];
-    readings[readIndex] = analogRead(GASPEDAL_PIN);
+    readings[readIndex] = rawValue;
     total = total + readings[readIndex];
     readIndex = (readIndex + 1) % 15;
     int avg = (int)(total / 15);
-    if (avg < 750) { pwm = 0; return false; }
+
+    // ABSICHERUNG: Kabelbruch / Kurzschluss
+    // Wenn das Poti über 4000 springt (VCC Kurzschluss), sofort aus.
+    if (rawValue > 4000) { 
+        pwm = 0; 
+        curState = SICHERHEITS_SPERRE; 
+        return false; 
+    }
+
+    // Dein Totbereich (Anpassen nach deinen Messwerten!)
+    if (avg < 750) { 
+        pwm = 0; 
+        return false; 
+    }
+
+    // Mapping (Hier nutzt du später deine gemessenen Rekorde)
     pwm = map(avg, 750, 3183, START_PWM_VALUE, MAX_PWM_LIMIT);
     pwm = constrain(pwm, START_PWM_VALUE, MAX_PWM_LIMIT);
+    
     return true;
 }
 
@@ -230,6 +282,13 @@ void setup() {
     server.on("/", [](){ server.send_P(200, "text/html", DASHBOARD_HTML); });
     server.on("/status", [](){
         server.send(200, "application/json", "{\"s\":" + String((int)curState) + ",\"p\":" + String(currentPWM) + ",\"t\":" + String(aktuelleTemperatur) + "}");
+    });
+    // Chrome & Android "Internet-Check" vorgaukeln
+    server.on("/generate_204", []() { server.send(204); });
+    server.on("/favicon.ico", []() { server.send(404); });
+    server.onNotFound([]() {
+    server.sendHeader("Location", "/", true);
+    server.send(302, "text/plain", "");
     });
     server.begin();
 }
