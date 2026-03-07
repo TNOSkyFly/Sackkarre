@@ -3,6 +3,12 @@
 #include <Wire.h>
 #include "driver/mcpwm.h"
 
+// =======================
+// NEU: Hier werden die drei Header-Dateien eingebunden
+// =======================
+#include "style.h"   // Enthält DASHBOARD_CSS
+#include "script.h"  // Enthält DASHBOARD_JS
+#include "index.h"   // Enthält DASHBOARD_HTML
 
 // =======================
 // Konfiguration & Pins
@@ -25,13 +31,13 @@ MotorState curState = MOTOR_AUS;
 int targetPWM = 0;   
 int currentPWM = 0;  
 int minPoti = 4095;       
-int maxPoti = 0;          
+int maxPoti = 0;           
 int lastLoggedMin = 4095; 
 int lastLoggedMax = 0;
 
 bool simuliereAkku = false; // Standardmäßig aus
 
-int R11 = 56000;        
+int R11 = 56000;         
 int R12 = 10000;
 int UZ = 20;            // Spannung Zehnerdiode
 float UBat = 0.0;
@@ -50,11 +56,6 @@ int readings[15];
 int readIndex = 0;
 long total = 0;
 
-// =======================
-// HTML Dashboard
-// =======================
-
-#include "index.h"
 // =======================
 // Steuerung & Logik
 // =======================
@@ -111,14 +112,28 @@ void setup() {
     mcpwm_init(MCPWM_UNIT_0, MCPWM_TIMER_0, &pc);
     mcpwm_deadtime_enable(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_ACTIVE_HIGH_COMPLIMENT_MODE, 10, 10);
     
-    server.on("/", [](){ server.send_P(200, "text/html", DASHBOARD_HTML); });
+    // --- Webserver Endpunkte ---
+    server.on("/", [](){ 
+        server.send_P(200, "text/html", DASHBOARD_HTML); 
+    });
+
+    server.on("/style.css", [](){ 
+        server.send_P(200, "text/css", DASHBOARD_CSS); 
+    });
+
+    server.on("/script.js", [](){ 
+        server.send_P(200, "application/javascript", DASHBOARD_JS); 
+    });
+
     server.on("/status", [](){
         server.send(200, "application/json", "{\"s\":" + String((int)curState) + ",\"p\":" + String(currentPWM) + ",\"t\":" + String(aktuelleTemperatur) + ",\"v\":" + String(UBat) + "}");
     });
+
     server.on("/toggleSim", [](){
-    simuliereAkku = !simuliereAkku;
-    server.send(200, "text/plain", simuliereAkku ? "SIM_AN" : "SIM_AUS");
-});
+        simuliereAkku = !simuliereAkku;
+        server.send(200, "text/plain", simuliereAkku ? "SIM_AN" : "SIM_AUS");
+    });
+
     server.begin();
 }
 
