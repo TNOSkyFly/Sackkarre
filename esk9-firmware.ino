@@ -103,8 +103,8 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
 </head>
 <body>
     <div id="lock-msg">
-        <h1 style="font-size:3.5rem; margin:0; text-shadow: 0 0 20px #000;">STOPP!</h1>
-        <p style="font-size:1.2rem; font-weight: bold;">FUSS VOM GASPEDAL</p>
+        <h1 style="font-size:3.5rem; margin:0; text-shadow: 0 0 20px #000;">Sicherheitssperre</h1>
+        <p style="font-size:1.2rem; font-weight: bold;">Fuß vom Gas!</p>
     </div>
 
     <div class="vmax-container">
