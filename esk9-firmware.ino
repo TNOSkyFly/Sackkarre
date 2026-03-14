@@ -4,7 +4,7 @@
 #include "driver/mcpwm.h"
 
 // =======================
-// NEU: Hier werden die drei Header-Dateien eingebunden
+// Header-Dateien
 // =======================
 #include "style.h"   // Enthält DASHBOARD_CSS
 #include "script.h"  // Enthält DASHBOARD_JS
@@ -72,16 +72,25 @@ void read_temp_sensor() {
 }
 
 float read_battery_voltage() {
-    if (simuliereAkku) return 37.5; // Festwert für den Testmodus
+    if (simuliereAkku) return 37.5;
 
     int rawADC = analogRead(UADC_PIN); 
+    if (rawADC < 10) return 0.0; // Keine Spannung vorhanden
+
+    // Spannung am ESP32 Pin (0 - 3.3V)
     float pinVoltage = rawADC * (3.3 / 4095.0); 
+
+    // UZ ist 20V, dazu kommen ca. 0.6V - 0.7V für die Basis-Emitter-Strecke von Q1
+    float offset = 20.6; 
+    float dividerRatio = (float(R11 + R12) / R12); // (56k + 10k) / 10k = 6.6
     
-    float currentVolt = (pinVoltage * (float(R11 + R12) / R12)) + UZ;
-    if (rawADC < 10) return 0.0;
+    float currentVolt = (pinVoltage * dividerRatio) + offset;
+
+    // Glättung (EMA Filter)
     static float smoothedVolt = 0.0;
     if (smoothedVolt < 1.0) smoothedVolt = currentVolt;
     smoothedVolt = (smoothedVolt * 0.95) + (currentVolt * 0.05);
+    
     return smoothedVolt;
 }
 

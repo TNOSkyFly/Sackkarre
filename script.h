@@ -41,7 +41,7 @@ setInterval(() => {
         document.body.classList.toggle('alarm', d.t >= 80);
 
         let volt = d.v;
-        let perc = Math.round((volt - 32) * (100 / (41 - 32)));
+        let perc = Math.round((volt - 32) * (100 / (42 - 32)));
         perc = Math.max(0, Math.min(100, perc));
         document.getElementById('bat-val').innerHTML = volt.toFixed(1);
         document.getElementById('bat-perc').innerHTML = perc;
