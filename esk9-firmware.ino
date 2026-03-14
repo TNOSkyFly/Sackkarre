@@ -37,8 +37,8 @@ int lastLoggedMax = 0;
 
 bool simuliereAkku = false; // Standardmäßig aus
 
-int R11 = 56000;         
-int R12 = 10000;
+int R11 = 1830;         
+int R12 = 330;
 int UZ = 20;            // Spannung Zehnerdiode
 float UBat = 0.0;
 
@@ -80,11 +80,10 @@ float read_battery_voltage() {
     // Spannung am ESP32 Pin (0 - 3.3V)
     float pinVoltage = rawADC * (3.3 / 4095.0); 
 
-    // UZ ist 20V, dazu kommen ca. 0.6V - 0.7V für die Basis-Emitter-Strecke von Q1
-    float offset = 20.6; 
+    float UZ = 20; 
     float dividerRatio = (float(R11 + R12) / R12); // (56k + 10k) / 10k = 6.6
     
-    float currentVolt = (pinVoltage * dividerRatio) + offset;
+    float currentVolt = (pinVoltage * dividerRatio) + UZ;
 
     // Glättung (EMA Filter)
     static float smoothedVolt = 0.0;
