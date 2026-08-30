@@ -6,6 +6,18 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
     <meta charset="UTF-8">
     <title>Sackkarre Dashboard</title>
     <link rel="stylesheet" href="/style.css">
+
+    <!-- Verlinkung auf das externe Manifest -->
+    <link rel="manifest" href="/manifest.json">
+
+    <!-- App Icons (Sauberes PNG als Base64) -->
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimH4VAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAA0SURBVHhe3cExAQAAAMKg9U9tCj8gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD4AN28AAXB3A28AAAAASUVORK5CYII=">
+    <link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimH4VAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAA0SURBVHhe3cExAQAAAMKg9U9tCj8gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD4AN28AAXB3A28AAAAASUVORK5CYII=">
+
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#000000">
 </head>
 <body>
     <div id="lock-msg">
@@ -37,7 +49,9 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
             <div style="font-size: 0.75rem;"><span id="bat-perc">0</span>%</div>
         </div>
     </div>
-
+    <button id="override-btn" onclick="checkLowBatteryOverride()" style="display:none; width:100%; background:#ff4444; color:#fff; font-weight:bold; padding:12px; margin:15px 0; border:none; border-radius:8px; font-size:0.9rem; text-transform:uppercase; letter-spacing:1px; box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);">
+        Akku leer! Notfall-Override (3x Bestätigen)
+    </button>
     <div class="diag-grid">
         <div class="diag-card">
             <span class="unit">MOSFET 1</span>

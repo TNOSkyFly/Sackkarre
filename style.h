@@ -1,4 +1,14 @@
 const char DASHBOARD_CSS[] PROGMEM = R"rawliteral(
+html, body {
+    width: 100vw;
+    height: 100vh;
+    height: -webkit-fill-available;
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* Verhindert ungewolltes Scrollen */
+    touch-action: manipulation;
+}
+
 body { 
     font-family: 'Segoe UI', sans-serif; background: #000; color: #eee; 
     margin: 0; padding: 15px; text-align: center; 
